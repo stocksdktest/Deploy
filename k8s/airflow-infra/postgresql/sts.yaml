@@ -1,0 +1,49 @@
+apiVersion: apps/v1beta2
+kind: StatefulSet
+metadata:
+  name: airflow-postgresql-sts
+  labels:
+    app: airflow-postgresql
+spec:
+  serviceName: airflow-postgresql-svc
+  replicas: 1
+  selector:
+    matchLabels:
+      app: airflow-postgresql
+  template:
+    metadata:
+      name: airflow-postgresql
+      labels:
+        app: airflow-postgresql
+        role: master
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+      - name: compute
+        image: "postgres:12-alpine"
+        imagePullPolicy: "IfNotPresent"
+        resources:
+          requests:
+            memory: 512Mi
+            cpu: 512m
+        env:
+        - name: POSTGRES_PASSWORD
+          value: airflow-njuics
+        - name: POSTGRES_USER
+          value: airflow-njuics
+        - name: POSTGRES_DB
+          value: airflow
+        ports:
+        - name: postgresql
+          containerPort: 5432
+        livenessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - exec pg_isready -U airflow-njuics -d airflow -h 127.0.0.1 -p 5432
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 6
