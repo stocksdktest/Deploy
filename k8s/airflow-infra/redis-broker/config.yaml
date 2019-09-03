@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: airflow-redis-script
+  labels:
+    app: airflow-redis
+data:
+  ping_local.sh: |-
+    response=$(
+      redis-cli \
+        -h localhost \
+        -p 6379 \
+        ping
+    )
+    if [ "$response" != "PONG" ]; then
+      echo "$response"
+      exit 1
+    fi

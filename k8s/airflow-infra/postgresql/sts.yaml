@@ -27,10 +27,13 @@ spec:
             memory: 512Mi
             cpu: 512m
         env:
-        - name: POSTGRES_PASSWORD
-          value: airflow-njuics
         - name: POSTGRES_USER
           value: airflow-njuics
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: airflow-secret
+              key: POSTGRES_PASSWORD
         - name: POSTGRES_DB
           value: airflow
         ports:
