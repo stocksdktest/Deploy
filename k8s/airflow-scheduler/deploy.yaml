@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airflow-scheduler
+  labels:
+    app: airflow-scheduler
+spec:
+  replicas: 1
+  strategy:
+    # Kill the scheduler as soon as possible. It will restart quickly with all the workers, minimizing the time they are not synchronized.
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 100%
+  selector:
+    matchLabels:
+      app: airflow-scheduler
+  template:
+    metadata:
+      name: airflow-scheduler
+      labels:
+        app: airflow-scheduler
+    spec:
+      nodeSelector:
+        airflow/schedulable: "true"
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      containers:
+      - name: compute
+        image: "registry.cn-shanghai.aliyuncs.com/sdk-test/airflow-web:1.10.4"
+        imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            memory: 512Mi
+            cpu: 512m
+        args:
+        - scheduler
+        env:
+        - name: AIRFLOW_HOME
+          value: /usr/local/airflow
+        - name: EXECUTOR
+          value: Celery
+        - name: FERNET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: airflow-secret
+              key: AIRFLOW_FERNET_KEY
+        # result backend
+        - name: POSTGRES_HOST
+          value: airflow-postgresql-svc.sdk-test.svc.cluster.local
+        - name: POSTGRES_PORT
+          value: "5432"              
+        - name: POSTGRES_USER
+          value: airflow-njuics
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: airflow-secret
+              key: POSTGRES_PASSWORD
+        - name: POSTGRES_DB
+          value: airflow
+        # broker
+        - name: REDIS_HOST
+          value: airflow-redis-svc.sdk-test.svc.cluster.local
+        - name: REDIS_PORT
+          value: "6379"
+        volumeMounts:
+        - name: airflow-root
+          mountPath: /usr/local/airflow/
+        - name: airflow-data
+          mountPath: /usr/local/airflow/plugins
+          subPath: plugins
+          readOnly: true
+        - name: airflow-data
+          mountPath: /usr/local/airflow/dags
+          subPath: dags
+          readOnly: true
+        - name: airflow-data
+          mountPath: /usr/local/airflow/config
+          subPath: config
+          readOnly: true
+      volumes:
+      - name: airflow-root
+        emptyDir: {}
+      - name: airflow-data
+        hostPath:
+          path: /home/chun/sdktest/airflow-root
+          type: Directory

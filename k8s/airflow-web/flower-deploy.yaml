@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airflow-celery-flower
+  labels:
+    app: airflow-ui
+spec:
+  replicas: 1
+  minReadySeconds: 120
+  strategy:
+    # Smooth rolling update of the Web UI
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: airflow-ui
+  template:
+    metadata:
+      name: airflow-celery-flower
+      labels:
+        app: airflow-ui
+    spec:
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      containers:
+      - name: compute
+        image: "registry.cn-shanghai.aliyuncs.com/sdk-test/airflow-web:1.10.4"
+        imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            memory: 512Mi
+            cpu: 512m
+        ports:
+        - name: flower
+          containerPort: 5555
+          protocol: TCP
+        command:
+        - /usr/local/bin/celery
+        args:
+        - flower
+        - --address=0.0.0.0
+        - --auto_refresh=True
+        - --port=5555
+        - --broker=redis://airflow-redis-svc.sdk-test.svc.cluster.local:6379/0
