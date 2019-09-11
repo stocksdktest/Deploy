@@ -1,0 +1,36 @@
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: sdktest-disk-1
+spec:
+  capacity:
+    storage: 6Gi
+  volumeMode: Filesystem
+  accessModes:
+  - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  rbd:
+    monitors:
+    - "node1:6789"
+    fsType: ext4
+    readOnly: false
+    user: kube
+    secretRef:
+      namespace: default
+      name: ceph-secret-kube
+    pool: data
+    image: pv-sdktest-disk-1
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sdktest-disk-1
+spec:
+  resources:
+    requests:
+      storage: 6Gi
+  accessModes:
+  - ReadWriteOnce
+  volumeName: sdktest-disk-1
+  volumeMode: Filesystem

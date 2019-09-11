@@ -1,0 +1,75 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: android-installer-svc
+spec:
+  type: NodePort
+  selector:
+    droidName: android-installer
+  ports:
+  - name: vnc
+    protocol: TCP
+    port: 5900
+    targetPort: 5900
+    nodePort: 32315
+  - name: ssh
+    protocol: TCP
+    port: 22
+    targetPort: 22
+    nodePort: 32317
+---
+apiVersion: kubevirt.io/v1alpha3
+kind: VirtualMachineInstance
+metadata:
+  annotations:
+     hooks.kubevirt.io/hookSidecars: '[{"image": "droidvirt/hook-sidecar:define-domain"}]'
+     vnc.droidvirt.io/port: '5900'
+     # websocket.vnc.droidvirt.io/port: '5901'
+     # disk.droidvirt.io/names: 'data-disk,os-disk'
+     # disk.droidvirt.io/driverType: 'raw'
+  labels:
+    droidName: android-installer
+  name: android-installer
+spec:
+  nodeSelector:
+    kubernetes.io/hostname: node1
+  domain:
+    cpu:
+      model: host-model
+      cores: 1
+      sockets: 1
+      threads: 1
+    devices:
+      disks:
+      - name: iso-cdrom
+        bootOrder: 1
+        cdrom: {}
+      - name: os-disk
+        bootOrder: 2
+        cache: "none"
+        disk:
+          bus: virtio
+      interfaces:
+      - name: default
+        model: virtio
+        masquerade: {}
+        ports:
+        - name: adbd
+          port: 22
+    resources:
+      requests:
+        memory: "2Gi"
+  terminationGracePeriodSeconds: 0
+  volumes:
+  - name: iso-cdrom
+    hostDisk:
+      path: /home/chun/droid-virt/android-x86_64-rbd.iso
+      type: Disk
+  - name: os-disk
+    persistentVolumeClaim:
+      claimName: sdktest-disk-1
+  networks:
+  - name: default
+    pod:
+      vmNetworkCIDR: "192.168.100.0/24"
+status: {}

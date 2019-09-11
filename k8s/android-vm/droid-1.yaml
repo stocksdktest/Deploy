@@ -1,0 +1,82 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: droid-1-svc
+  annotations:
+    getambassador.io/config: |
+      ---
+      apiVersion: ambassador/v1
+      kind: Mapping
+      name: droid-1-mapping-ws
+      prefix: /droid/1/ws
+      service: droid-1-svc.droidvirt.svc.cluster.local:5901
+      use_websocket: true
+spec:
+  type: NodePort
+  selector:
+    droidName: droid-1
+  ports:
+  - name: vnc
+    protocol: TCP
+    port: 5900
+    targetPort: 5900
+    nodePort: 32310
+  - name: vnc-ws
+    protocol: TCP
+    port: 5901
+    targetPort: 5901
+    nodePort: 32311
+  - name: adbd
+    protocol: TCP
+    port: 5555
+    targetPort: 5555
+    nodePort: 32315
+---
+apiVersion: kubevirt.io/v1alpha3
+kind: VirtualMachineInstance
+metadata:
+  annotations:
+    hooks.kubevirt.io/hookSidecars: '[{"image": "droidvirt/hook-sidecar:define-domain"}]'
+    vnc.droidvirt.io/port: '5900'
+    websocket.vnc.droidvirt.io/port: '5901'
+  labels:
+    droidName: droid-1
+    injector.droidvirt.io/request: 'android-worker-sidecar'
+  name: droid-1
+spec:
+  nodeSelector:
+    airflow/schedulable: "true"
+  domain:
+    cpu:
+      model: host-model
+      cores: 1
+      sockets: 1
+      threads: 1
+    devices:
+      disks:
+      - name: os-disk
+        bootOrder: 1
+        cache: "none"
+        disk:
+          bus: virtio
+      interfaces:
+      - name: default
+        model: virtio
+        masquerade: {}
+        ports:
+        - name: adbd
+          port: 5555
+    resources:
+      requests:
+        memory: "2Gi"
+  terminationGracePeriodSeconds: 0
+  volumes:
+  - name: os-disk
+    ephemeral:
+      persistentVolumeClaim:
+        claimName: sdktest-disk-1
+  networks:
+  - name: default
+    pod:
+      vmNetworkCIDR: "192.168.100.0/24"
+status: {}

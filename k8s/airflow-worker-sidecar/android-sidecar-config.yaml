@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: android-worker-sidecar
+  labels:
+    app: k8s-sidecar-injector
+data:
+  android-worker-sidecar: |-
+    name: android-worker-sidecar
+    volumes:
+    - name: airflow-root
+      emptyDir: {}
+    - name: airflow-data
+      hostPath:
+        path: /home/chun/sdktest/airflow-root
+        type: Directory
+    containers:
+    - name: worker
+      image: registry.cn-shanghai.aliyuncs.com/sdk-test/airflow-worker:1.10.4
+      imagePullPolicy: IfNotPresent
+      args:
+      - worker
+      - --queues
+      - android
+      - --concurrency
+      - 1
+      env:
+      - name: C_FORCE_ROOT
+        value: "1"
+      - name: AIRFLOW_HOME
+        value: /usr/local/airflow
+      - name: EXECUTOR
+        value: Celery
+      - name: FERNET_KEY
+        valueFrom:
+          secretKeyRef:
+            name: airflow-secret
+            key: AIRFLOW_FERNET_KEY
+      - name: POSTGRES_HOST
+        value: airflow-postgresql-svc.sdk-test.svc.cluster.local
+      - name: POSTGRES_PORT
+        value: "5432"              
+      - name: POSTGRES_USER
+        value: airflow-njuics
+      - name: POSTGRES_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: airflow-secret
+            key: POSTGRES_PASSWORD
+      - name: POSTGRES_DB
+        value: airflow
+      - name: REDIS_HOST
+        value: airflow-redis-svc.sdk-test.svc.cluster.local
+      - name: REDIS_PORT
+        value: "6379"
+      volumeMounts:
+      - name: airflow-root
+        mountPath: /usr/local/airflow/
+      - name: airflow-data
+        mountPath: /usr/local/airflow/plugins
+        subPath: plugins
+      - name: airflow-data
+        mountPath: /usr/local/airflow/dags
+        subPath: dags
+      - name: airflow-data
+        mountPath: /usr/local/airflow/config
+        subPath: config
